@@ -9,3 +9,5 @@
 # Extensions to ignore
 *.Rproj
 *html
+
+*scratch*
