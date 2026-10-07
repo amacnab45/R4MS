@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+
+# Extensions to ignore
+*.Rproj
+*html
