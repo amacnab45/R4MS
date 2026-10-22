@@ -1,0 +1,561 @@
+---
+title: "TW2"
+format: html
+editor: visual
+---
+
+## 
+
+```{r}
+library(tidyverse)
+list.files()
+En_sonde <- readr::read_csv("estuary_sonde_data.csv")
+
+head(En_sonde)
+```
+
+```{r packages }
+# Make sure packages are loaded
+library(tidyverse)
+library(palmerpenguins)
+library(stringr)
+library(readxl)
+library(purrr)
+library(tibble)
+
+
+# The messy metadata provided by your colleague
+island_metadata <- tibble(
+  island_name = c(" biscoe", "Dream ", "Torgersen"),
+  station_install = c("15/01/2003", "22-03-2004", "05/11/2001"),
+  latitude = c(-64.81, -64.73, -64.76)
+)
+names(penguins)
+print(island_metadata)
+
+```
+
+```{r -Standardising the dataset/ join them by two datasets based on island location}
+# Exercise 1
+
+clean_metadata <- island_metadata %>% 
+  mutate(
+    island_name = str_to_title(island_name),
+    station_install = ymd(c(
+      "2003/01/15",
+      "2004/03/22",
+      "2001/11/05"
+    ))
+  )
+
+# Exercise 2
+
+penguins_spatial <- left_join(
+  clean_metadata,
+  penguins,
+  by = c("island_name" = "island")
+)
+
+```
+
+```{r -Establishing highest penguin body mass with island prescene included}
+#Exercise 3            
+# separate lines need to help debug code
+
+Max_body_mass <- penguins %>%
+  drop_na(body_mass_g) %>%
+  group_by(species, island) %>%
+  summarise(
+    max_body_mass = max(body_mass_g),
+    .groups = "drop"
+  ) %>%
+  pivot_wider(
+    names_from = island,
+    values_from = max_body_mass
+  )
+
+Max_body_mass
+
+
+print(Max_body_mass)
+# A tibble: 3 × 4
+# Groups:   species [3]
+#species   Torgersen Biscoe Dream
+#<fct>         <int>  <int> <int>
+#1 Adelie         4700   4775  4650
+#2 Gentoo           NA   6300    NA
+#3 Chinstrap        NA     NA  4800
+## The NA is due to the penguin species not occuring on those islands
+
+```
+
+```{r- Datasets}
+# Keystone exercise 
+setwd("~/Desktop/Master of Marine Biology /T1/R4MS/data")
+list.files("data")
+#Loading in the data
+EU_metdata <- read_csv("data/estuary_metadata.csv")
+En_sonde <- read_csv("data/estuary_sonde_data.csv")
+Species_dict <- read_csv("data/species_dictionary.csv")
+getwd()
+list.files()
+file.exists("estuary_sonde_data.csv")
+
+# Load CSV files directly from the main folder
+EU_metdata   <- read_csv("estuary_metadata.csv")
+En_sonde     <- read_csv("estuary_sonde_data.csv")
+Species_dict <- read_csv("species_dictionary.csv")
+fish <- read_excel("estuary_catch_log.xlsx")
+
+head(En_sonde)
+```
+
+```{r- Adding the necessary datasets}
+#Renaming to appropiate file names
+excel_sheets("data/estuary_catch_log.xlsx")
+lower <- read_excel("data/estuary_catch_log.xlsx", sheet = "Lower_ross")
+upper <- read_excel("data/estuary_catch_log.xlsx", sheet = "Upper Ross")
+mid <- read_excel("data/estuary_catch_log.xlsx", sheet = 2)
+mouth <- read_excel("data/estuary_catch_log.xlsx", sheet = 3)
+
+library(tidyverse)
+library(readxl)
+
+fish <- excel_sheets("estuary_catch_log.xlsx") %>%
+  set_names() %>%
+  map_dfr(
+    ~ read_excel("estuary_catch_log.xlsx", sheet = .x),
+    .id = "source_sheet"
+  )
+
+glimpse(fish)
+
+
+
+
+
+```
+
+```{r-creating meta data for catch logs}
+# Import all sheets
+fish <- map_dfr(
+  excel_sheets("data/estuary_catch_log.xlsx"),
+  ~ read_excel("data/estuary_catch_log.xlsx", sheet = .x)
+)
+fish <- bind_rows (lower, mid, mouth,upper)
+fish$site <- gsub("_", " ", fish$site)
+unique(fish$site)
+En_sonde <- read_csv("estuary_sonde_data.csv")
+
+
+```
+
+```{r Loading in datasets}
+E_metdata   <- read_csv("estuary_metadata.csv")
+fish <- read_excel("estuary_catch_log.xlsx")
+En_sonde <- read_csv("estuary_sonde_data.csv")
+
+excel_sheets("estuary_catch_log.xlsx")
+lower <- read_excel("estuary_catch_log.xlsx", sheet = "Lower_ross")
+upper <- read_excel("estuary_catch_log.xlsx", sheet = "Upper Ross")
+mid <- read_excel("estuary_catch_log.xlsx", sheet = 2)
+mouth <- read_excel("estuary_catch_log.xlsx", sheet = 3)
+
+
+
+# Import all sheets
+fish <- map_dfr(
+  excel_sheets("estuary_catch_log.xlsx"),
+  ~ read_excel("estuary_catch_log.xlsx", sheet = .x)
+)
+fish <- bind_rows (lower, mid, mouth,upper)
+fish$site <- gsub("_", " ", fish$site)
+unique(fish$site)
+
+
+```
+
+
+
+
+```{r Rename}
+
+E_metdata <- E_metdata %>%
+  mutate(site_name = case_match(
+    site_name,
+    "Upper_Ross" ~ "Upper Ross",
+    " mid_ross"  ~ "Mid Ross",
+    "LOWER ROSS" ~ "Lower Ross",
+    "ross_mouth" ~ "Ross Mouth",
+    .default = site_name
+  ))
+
+E_metdata %>%
+  filter(site_name == "Ross Mouth")
+E_metdata <- E_metdata %>%
+  rename(site = `site_name`)
+
+E_metdata <- E_metdata %>%
+  mutate(
+    site = if_else(site == "mid_ross", "Mid Ross", site)
+  )
+
+
+
+
+```
+
+
+```{r Rename 2}
+E_sonde<- En_sonde %>%
+  mutate(site = case_when(
+    site %in% c("mid_ross", "Mid_ross", "MID_ROSS", "Mid_Ross") ~ "Mid Ross",
+    site %in% c("lower_ross", "Lower_ross", "LOWER ROSS")      ~ "Lower Ross",
+    site %in% c("upper_ross", "Upper_ross", "Upper_Ross")      ~ "Upper Ross",
+    site %in% c("ross_mouth", "Ross_mouth", "ROSS MOUTH")      ~ "Ross Mouth",
+    TRUE ~ site # leaves any other site name unchanged
+  ))
+
+fish2<- fish%>%
+  mutate(site = case_when(
+    site %in% c("mid_ross", "Mid_ross", "MID_ROSS", "Mid_Ross") ~ "Mid Ross",
+    site %in% c("lower_ross", "Lower_ross", "LOWER ROSS")      ~ "Lower Ross",
+    site %in% c("upper_ross", "Upper_ross", "Upper_Ross")      ~ "Upper Ross",
+    site %in% c("ross_mouth", "Ross_mouth", "ROSS MOUTH")      ~ "Ross Mouth",
+    TRUE ~ site # leaves any other site name unchanged
+  ))
+
+E_metdata <- E_metdata%>%
+  mutate(site = case_match(
+    site,
+    "Upper Ross" ~ "Upper Ross",
+    " mid ross"   ~ "Mid Ross",
+    "Lower_ross" ~ "Lower Ross",
+    "ROSS MOUTH" ~ "Ross Mouth",
+    .default = site 
+  ))
+
+fish$species <- recode(
+ fish$species,
+ "barramundi" = "Lates calcarifer",
+  "MANGROVE JACK" = "Lutjanus argentimaculatus",
+  "bream" = "Acanthopagrus australis",
+  "flathead" = "Platycephalus fuscus"
+)
+
+fish2 <- fish2 %>%
+  mutate(
+    site = if_else(site == "Lower ross", "Lower Ross", site)
+  )
+
+
+
+```
+
+
+```{r clean-sonde}
+E_sonde <- En_sonde %>%
+  mutate(turbidity = na_if(turbidity, -999))
+
+S<- En_sonde %>%
+  mutate(site = case_when(
+    site %in% c("mid_ross", "Mid_ross", "MID_ROSS", "Mid_Ross") ~ "Mid Ross",
+    site %in% c("lower_ross", "Lower_ross", "LOWER ROSS")      ~ "Lower Ross",
+    site %in% c("upper_ross", "Upper_ross", "Upper_Ross")      ~ "Upper Ross",
+    site %in% c("ross_mouth", "Ross_mouth", "ROSS MOUTH")      ~ "Ross Mouth",
+    TRUE ~ site # leaves any other site name unchanged
+  ))
+
+
+
+```
+
+
+
+```{r combining datasets}
+names(S)
+lubridate::dmy_hm()
+head(S$timestamp)
+
+S_daily <- S %>%
+  mutate(date = as.Date(timestamp)) %>%
+  group_by(site, date) %>%
+  summarise(
+    mean_turbidity = mean(turbidity, na.rm = TRUE),
+    mean_temp = mean(temperature, na.rm = TRUE),
+    mean_salinity = mean(salinity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+head(S_daily)
+glimpse(S)
+dim(S_daily)
+
+f2<- fish2 %>%
+  left_join(E_metdata, by = c("site")) 
+
+f2$species <- recode(
+ f2$species,
+ "barramundi" = "Lates calcarifer",
+  "MANGROVE JACK" = "Lutjanus argentimaculatus",
+  "bream" = "Acanthopagrus australis",
+  "flathead" = "Platycephalus fuscus"
+)
+
+
+
+
+
+S2<- S_daily %>%
+  left_join(fish2, by = c("site"))
+
+glimpse(f2)
+#Creating metadata
+class(f2$date)
+class(S_daily$date)
+metadata <- f2 %>%
+  left_join(S_daily, by = c("site", "date"))
+
+f3 <- f2 %>%
+  mutate(date = as.Date(date))
+class(f3$date)
+class(S_daily$date)
+
+#Joining the dataset together 
+
+
+unique(f3$site)
+unique(S_daily$site)
+range(f3$date)
+range(S_daily$date)
+library(lubridate)
+
+head(dmy_hm(S$timestamp))
+S <- S %>%
+  mutate(
+    datetime = dmy_hm(timestamp)
+  )
+
+head(S$datetime)
+range(S$datetime)
+
+S_daily <- S %>%
+  mutate(date = as.Date(datetime)) %>%
+  group_by(site, date) %>%
+  summarise(
+    mean_temp = mean(temperature, na.rm = TRUE),
+    mean_salinity = mean(salinity, na.rm = TRUE),
+    mean_turbidity = mean(turbidity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+range(S_daily$date)
+metadata <- f3 %>%
+  left_join(S_daily, by = c("site", "date"))
+
+Total <- metadata %>%
+  group_by(site, zone) %>%
+  mutate(
+    mean_count = mean(count, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+```
+
+```{r Table creation}
+#Summary table displaying mean count/ mean salinity depending on zone with sd included 
+summary_table <- Total %>%
+  group_by(species, zone) %>%
+  summarise(
+    mean_count = sum(count, na.rm = TRUE),
+    sd_count = sd(count, na.rm = TRUE),
+    mean_sal = mean(mean_salinity, na.rm = TRUE),
+    sd_sal = sd(mean_salinity, na.rm = TRUE),
+    .groups = "drop"
+  )
+print(summary_table)
+
+
+```
+
+```{r Plotting}
+"Figure 2: Daily predatory fish catch abundance trends plotted against estuarine spatial boundaries. Faded points represent underlying jittered field observations."
+summary_table |> 
+  ggplot(aes(x = zone, y = mean_count, fill = species)) +
+  geom_line(group = 1) +
+  # add in points from master data
+  geom_point(data = summary_table, aes(x = zone, y = mean_count),
+             position = position_jitter(width = 0.2), alpha = 0.2, size = 1, inherit.aes = FALSE) + 
+  geom_point(position = "dodge", size = 4, pch = 23) +
+  # SE pretty narrow, potentially not worth plotting but let's viewer see that included
+  geom_errorbar(aes(ymin = mean_count - sd_count, ymax = mean_count + sd_count), 
+                position = position_dodge(0.9), width = 0.2) + 
+  facet_wrap(~ species, scales = "fixed") +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "italic", size = 10, colour = "grey20"), # spp names in italic
+    # legend.position = "bottom"
+    legend.position = "none" # legend unnecessary
+  ) +
+  labs(
+    #title = "Predatory Fish Abundance across Estuarine Salinity Gradients", # default ggplot title appears on top
+    #subtitle = "Ross River Estuary System, May 2026",
+    x = "Spatial Zone",
+    # scientific label for y axis of n day -1 use regex to get superscript
+    y = expression("Abundance (n day"^-1*")"),
+    #  y = "Daily abundance (n day^-1)"
+    y = "Abundance (per day)"
+  )
+
+
+```
+
+
+
+
+```{r Salinity}
+
+#Median Salinity 
+S_daily <- S %>%
+  mutate(date = as.Date(datetime)) %>%
+  group_by(site, date) %>%
+  summarise(
+    mean_temp = mean(temperature, na.rm = TRUE),
+    mean_salinity = mean(salinity, na.rm = TRUE),
+    median_salinity = median(salinity, na.rm = TRUE),
+    sd_salinity = sd(salinity, na.rm = TRUE),
+    mean_turbidity = mean(turbidity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+#Median Salinity 
+
+
+glimpse(Total)
+
+T2 <- Total %>%
+  left_join(
+    S_daily %>%
+      select(site, date, median_salinity, sd_salinity),
+    by = c("site", "date")
+  )
+
+#### Remake salinity plot nicely for publication
+#| fig-cap: "Salinity Gradient across zones. Ross River Estuary System, Townsville, NQ, Australia May 2026."
+
+#Calculating the median 
+
+summary2_table <- T2 %>%
+  group_by(species, zone) %>%
+  summarise(
+    median_sal = median(median_salinity, na.rm = TRUE),
+    sd_salinity = sd(median_salinity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+print(summary2_table)
+#Median Salinity data
+
+plot_data <- T2 %>%
+  group_by(zone) %>%
+  summarise(
+    median_sal = median(median_salinity, na.rm = TRUE),
+    sd_salinity = sd(median_salinity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(plot_data, aes(x = zone, y = median_sal)) +
+  geom_point(size = 4, colour = "steelblue") +
+  geom_errorbar(
+    aes(
+      ymin = median_sal - sd_salinity,
+      ymax = median_sal + sd_salinity
+    ),
+    width = 0.2,
+    linewidth = 0.8
+  ) +
+  theme_classic() +
+  labs(
+    x = "Zone",
+    y = "Median Salinity (ppt)"
+  )
+
+ 
+
+
+```
+
+
+
+```{r Temp graph}
+
+fish_stats <- Total |>
+  group_by(zone, species) |>
+  summarise(
+    mean_catch = mean(count, na.rm = TRUE),
+    sem_catch = sd(count, na.rm = TRUE) / sqrt(sum(!is.na(count))),
+    .groups = "drop"
+  )
+
+print(fish_stats)
+
+names(S)
+# Temperature
+temp_sum <- 
+ T2 |>
+  group_by(zone) |>
+  summarise(
+    sd_temperature = sd(mean_temp, na.rm = TRUE),
+    median_temperature = median(mean_temp, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(temp_sum, aes(x= zone, y=median_temperature, colour =zone )) +
+  geom_point(size = 4) +
+geom_errorbar( 
+  aes( ymin = median_temperature - sd_temperature, 
+       ymax = median_temperature + sd_temperature) ,
+  width = 0.15,
+linewidth = 0.8
+) +
+  theme_classic(base_size = 14) +
+  labs(
+    x = "Zone",
+    y = "Median Temperature (°C)"
+  ) +
+  guides(colour = "none")
+
+temp_sum |>
+  ggplot(aes(x = zone, y = median_temperature)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = median_temperature - sd_temperature, ymax = median_temperature + sd_temperature), width = 0.2) +
+  theme_minimal() +
+  labs(#title = "Median Temperature by Zone with Standard Deviation Error Bars",
+    x = "Zone",
+    y = "Median Temperature (°C)")
+
+
+#Turbidity
+tb <- 
+T2 |>
+  group_by(zone) |>
+  summarise(
+    sd_turbidity = sd(mean_turbidity, na.rm = TRUE),
+    median_turbidity = median(mean_turbidity, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+tb|>
+  ggplot(aes(x = zone, y = median_turbidity, colour = zone)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = median_turbidity - sd_turbidity, ymax = median_turbidity + sd_turbidity), width = 0.2) +
+  theme_minimal() +
+  labs(#title = "Median Turbidity by Zone with Standard Deviation Error Bars",
+    x = "Zone",
+    y = "Median Turbidity (NTU)")
+
+```         
+
